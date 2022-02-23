@@ -123,3 +123,4 @@ dist
 
 # testing db
 testing.db3
+.DS_Store
