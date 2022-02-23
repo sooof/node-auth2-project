@@ -1,5 +1,7 @@
 const { JWT_SECRET } = require("../secrets"); // use this secret!
+const User = require('./../users/users-model')
 
+const jwt = require('jsonwebtoken')
 const restricted = (req, res, next) => {
   /*
     If the user does not provide a token in the Authorization header:
@@ -16,8 +18,19 @@ const restricted = (req, res, next) => {
 
     Put the decoded token in the req object, to make life easier for middlewares downstream!
   */
-  console.log("restricted middleware!")
-  next()
+  const token = req.headers.authorization
+  if(!token){
+    next({status: 401, message: "Token required" })
+  }else{
+    jwt.verify(token, JWT_SECRET, (err, decodedToken)=> {
+      if(err){
+        next({status: 401, message: "Token invalid"})
+      }else{
+        req.decodedJwt = decodedToken
+        next()
+      }
+    })
+  }
 }
 
 const only = role_name => (req, res, next) => {
@@ -31,12 +44,19 @@ const only = role_name => (req, res, next) => {
 
     Pull the decoded token from the req object, to avoid verifying it again!
   */
-  console.log("only middleware!")
-  next()
+  try{
+    if(role_name != req.decodedJwt.role_name){
+      return next({status: 403, message:"This is not for you" })
+    }else{
+      next()
+    }
+  }catch(err){
+    next(err)
+  }
 }
 
 
-const checkUsernameExists = (req, res, next) => {
+const checkUsernameExists = async (req, res, next) => {
   /*
     If the username in req.body does NOT exist in the database
     status 401
@@ -44,8 +64,18 @@ const checkUsernameExists = (req, res, next) => {
       "message": "Invalid credentials"
     }
   */
-  console.log("checkUsernameExists middleware!")
-  next()
+
+  try{
+    const exitUser = await User.findBy({username: req.body.username})
+    if(exitUser){
+      req.user = exitUser
+      next()
+    }else{
+      next({status: 401, message:  "Invalid credentials" })
+    }
+  }catch(err){
+    next(err)
+  }
 }
 
 
@@ -68,8 +98,7 @@ const validateRoleName = (req, res, next) => {
       "message": "Role name can not be longer than 32 chars"
     }
   */
-  // console.log("validateRoleName middleware!")
-  // next()
+
   try{
     const { role_name } = req.body
     if(!role_name || !role_name.trim()){
