@@ -68,8 +68,24 @@ const validateRoleName = (req, res, next) => {
       "message": "Role name can not be longer than 32 chars"
     }
   */
-  console.log("validateRoleName middleware!")
-  next()
+  // console.log("validateRoleName middleware!")
+  // next()
+  try{
+    const { role_name } = req.body
+    if(!role_name || !role_name.trim()){
+      req.role_name = 'student'
+      return next()
+    }else if (role_name.trim() === 'admin'){
+      return next({status: 422, message: "Role name can not be admin" })
+    }else if(role_name.trim().length > 32){
+      return next({status: 422, message: "Role name can not be longer than 32 chars" })
+    }else{
+      req.role_name = req.body.role_name.trim()
+      next()
+    }
+  }catch(err){
+    next(err)
+  }
 }
 
 module.exports = {
